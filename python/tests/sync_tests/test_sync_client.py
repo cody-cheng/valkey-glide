@@ -571,6 +571,7 @@ class TestGlideClients:
             if not os.WIFEXITED(status) or os.WEXITSTATUS(status) != 0:
                 pytest.fail(f"Child process failed with status {status}")
 
+    @pytest.mark.requires_tcp
     @pytest.mark.parametrize("cluster_mode", [True, False])
     @pytest.mark.parametrize("ip_address", [IP_ADDRESS_V4, IP_ADDRESS_V6])
     def test_connect_with_ip_address_succeeds(
@@ -13282,6 +13283,7 @@ class TestSyncScripts:
         assert ttl_results == [-1] * len(field_names)
 
     @pytest.mark.parametrize("cluster_mode", [True, False])
+    @pytest.mark.requires_tcp
     @pytest.mark.parametrize("tcp_nodelay", [None, True, False])
     def test_tcp_nodelay_configuration(
         self,
@@ -13374,6 +13376,7 @@ class TestSyncScripts:
 
     @pytest.mark.parametrize("cluster_mode", [False])
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
+    @pytest.mark.requires_tcp
     def test_failover(self, glide_sync_client: GlideClient):
         # Spin up a dedicated standalone with 1 replica so the failover
         # doesn't destabilize the shared test server.
