@@ -179,6 +179,34 @@ class TestAsyncClientPool:
             pool.close()
 
     @pytest.mark.parametrize("cluster_mode", [True, False])
+    async def test_pool_acquire_timeout_zero_fails_immediately(self, cluster_mode):
+        """acquire(timeout=0) must fail immediately on an exhausted pool.
+
+        A falsy-check (`timeout or default`) would replace 0 with the pool's
+        acquire_timeout_s and block for that long instead.
+        """
+        import time
+
+        config = _get_pool_client_config(cluster_mode)
+        # A long default makes the difference between "0" and "fell back to the default" obvious.
+        pool = await AsyncClientPool.create(
+            config, PoolConfig(max_size=1, min_idle=1, acquire_timeout_s=30.0)
+        )
+        await _wait_for_pool_ready(pool, 1)
+
+        try:
+            client_id = await pool.acquire()
+
+            start = time.monotonic()
+            with pytest.raises(TimeoutError):
+                await pool.acquire(timeout=0)
+            assert time.monotonic() - start < 5.0
+
+            pool.release(client_id)
+        finally:
+            pool.close()
+
+    @pytest.mark.parametrize("cluster_mode", [True, False])
     async def test_pool_concurrent_access(self, cluster_mode):
         """Multiple tasks borrow/release concurrently."""
         config = _get_pool_client_config(cluster_mode)
@@ -678,6 +706,7 @@ class TestPoolPubsubRejection:
 class TestPoolErrorHandling:
     """Negative tests — pool creation surfaces connectivity errors."""
 
+    @pytest.mark.requires_tcp
     async def test_pool_bad_address_create_fails(self, request):
         """Pool with unreachable address: create should raise immediately."""
         from glide_shared.config import GlideClientConfiguration, NodeAddress

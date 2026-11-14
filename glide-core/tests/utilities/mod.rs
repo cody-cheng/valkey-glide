@@ -43,9 +43,19 @@ pub enum ServerType {
     Unix,
 }
 
+/// The server type for standalone tests. `GLIDE_TEST_UNIX_SOCKET`, set to any value, runs the
+/// non-TLS ones over a Unix domain socket.
+pub fn standalone_server_type(tls: bool) -> ServerType {
+    if !tls && env::var_os("GLIDE_TEST_UNIX_SOCKET").is_some() {
+        ServerType::Unix
+    } else {
+        ServerType::Tcp { tls }
+    }
+}
+
 type SharedServer = Lazy<Mutex<Option<RedisServer>>>;
 static SHARED_SERVER: SharedServer =
-    Lazy::new(|| Mutex::new(Some(RedisServer::new(ServerType::Tcp { tls: false }))));
+    Lazy::new(|| Mutex::new(Some(RedisServer::new(standalone_server_type(false)))));
 
 static SHARED_TLS_SERVER: SharedServer =
     Lazy::new(|| Mutex::new(Some(RedisServer::new(ServerType::Tcp { tls: true }))));
@@ -918,9 +928,9 @@ pub struct TestConfiguration {
 
 pub(crate) async fn setup_test_basics_internal(configuration: &TestConfiguration) -> TestBasics {
     let server = if !configuration.shared_server {
-        Some(RedisServer::new(ServerType::Tcp {
-            tls: configuration.use_tls,
-        }))
+        Some(RedisServer::new(standalone_server_type(
+            configuration.use_tls,
+        )))
     } else {
         None
     };

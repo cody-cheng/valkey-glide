@@ -86,6 +86,25 @@ mod unix_socket_tests {
         }
     }
 
+    /// Fails if `GLIDE_TEST_UNIX_SOCKET` stops moving the standalone tests onto a socket.
+    #[rstest]
+    #[timeout(SHORT_STANDALONE_TEST_TIMEOUT)]
+    fn test_standalone_tests_use_unix_socket_when_requested(
+        #[values(false, true)] shared_server: bool,
+    ) {
+        if std::env::var_os("GLIDE_TEST_UNIX_SOCKET").is_none() {
+            return;
+        }
+        block_on_all(async move {
+            let mut test_basics = setup_test_basics_internal(&TestConfiguration {
+                shared_server,
+                ..Default::default()
+            })
+            .await;
+            assert_client_uses_socket(&mut test_basics.client).await;
+        });
+    }
+
     #[rstest]
     #[timeout(SHORT_STANDALONE_TEST_TIMEOUT)]
     fn test_client_connects_over_unix_socket(#[values(false, true)] lazy_connect: bool) {

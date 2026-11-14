@@ -14,8 +14,8 @@ on:
             - benchmarks/rust/**
 
             # Rust dependencies
-            - glide-telemetry/**
             - glide-logger/**
+            - glide-telemetry/**
             - glide-rdma/**
             - deny.toml
 
@@ -35,6 +35,8 @@ on:
             - benchmarks/install_and_test.sh
             - benchmarks/utilities/**
             - utils/cluster_manager.py
+
+            # Exclusions
             - "!**/*.md"
             - "!**/THIRD_PARTY_LICENSES*"
     pull_request:
@@ -43,8 +45,8 @@ on:
             - benchmarks/rust/**
 
             # Rust dependencies
-            - glide-telemetry/**
             - glide-logger/**
+            - glide-telemetry/**
             - glide-rdma/**
             - deny.toml
 
@@ -64,6 +66,8 @@ on:
             - benchmarks/install_and_test.sh
             - benchmarks/utilities/**
             - utils/cluster_manager.py
+
+            # Exclusions
             - "!**/*.md"
             - "!**/THIRD_PARTY_LICENSES*"
     workflow_dispatch:
@@ -105,7 +109,7 @@ on:
                 default: false
 
 concurrency:
-    group: glide-core-${{ github.head_ref || github.ref }}-${{ toJson(inputs) }}
+    group: glide-core-${{ github.head_ref || github.ref }}-${{ github.workflow }}-${{ toJson(inputs) }}
     cancel-in-progress: true
 
 env:
@@ -190,6 +194,13 @@ jobs:
               working-directory: ./glide-core
               run: cargo test --locked --features "proto,socket-layer,standalone_heartbeat"
 
+            - name: Run glide-core tests over a Unix socket
+              if: (inputs.full-matrix == true || github.event_name == 'schedule') && matrix.host.OS == 'ubuntu'
+              working-directory: ./glide-core
+              env:
+                  GLIDE_TEST_UNIX_SOCKET: "1"
+              run: cargo test --locked --features "proto,socket-layer,standalone_heartbeat"
+
             - name: Install libfabric
               uses: ./.github/actions/install-libfabric
 
@@ -197,8 +208,10 @@ jobs:
             - name: Run glide-core RDMA tests
               working-directory: ./glide-core
               run: |
-                  cargo test --locked --features rdma --lib
-                  cargo test --locked --features rdma --test test_rdma
+                  cargo test --locked --features rdma-tcp-dev --lib
+                  cargo test --locked --features rdma-tcp-dev --test test_rdma
+                  # The release shape: `rdma` alone carries no tcp provider.
+                  cargo test --locked --features rdma --lib -- rdma tcp_provider
 
             - name: Check features
               working-directory: ./glide-core
