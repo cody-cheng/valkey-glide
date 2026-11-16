@@ -111,6 +111,8 @@ protoc --plugin=protoc-gen-mypy=.env/bin/protoc-gen-mypy -Iprotobuf=../glide-cor
 
 `python3 dev.py test` **auto-starts** standalone + cluster servers via `utils/cluster_manager.py` and stops them afterward — you don't start anything manually for a normal run. The `--cluster-endpoints=`/`--standalone-endpoints=` flags below are only for pointing at a server you started yourself (ad-hoc/manual testing); see the root [../AGENTS.md](../AGENTS.md) "Test Servers" section for the `cluster_manager.py` commands. A `valkey-server`/`redis-server` on `PATH` is required either way.
 
+CI also runs Unix socket tests in the nightly full matrix. See [Unix Socket Tests](./DEVELOPER.md#unix-socket-tests) for the local command and test-writing guidance.
+
 ### Test Execution Options
 
 ```bash
@@ -191,6 +193,7 @@ cargo clippy --all-features --all-targets -- -D warnings
 - **Protobuf Updates:** Run `python3 dev.py protobuf` after proto changes
 - **Stale `libglide_ffi.so` after core changes:** `install_glide_shared` (in `dev.py`) only (re)builds and copies the C-ABI `libglide_ffi.*` into `glide-shared/glide_shared/` when that destination file is **absent** — so once a copy exists, a later `dev.py build` keeps using the old one even after you change `ffi/`/`glide-core` (symptom: sync tests fail with `undefined symbol: glide_scope_...` against a stale `.so`). Rebuilding `ffi` alone does **not** fix it because the copy is skipped. To force a refresh, delete the stale lib (`rm glide-shared/glide_shared/libglide_ffi.*`) or run `python3 dev.py clean`, then rebuild. Not environment-specific. CI never hits this (ephemeral runners build from scratch).
 - **Documentation Style:** Follow Google Style Python Docstrings format
+- **Distinguish "unset" from a falsy value:** When an optional value can legitimately be `0`, `0.0` or `""`, test it with `is not None` rather than truthiness (`if x:`, `x or default`), so a valid falsy value is not dropped or replaced by a default. Truthiness is fine for booleans and for collections/objects where empty means "not provided".
 
 ### Python Free-Threading (3.14t) Concurrency Rules
 
