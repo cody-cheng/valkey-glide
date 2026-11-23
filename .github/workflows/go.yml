@@ -10,13 +10,27 @@ on:
             - release-*
             - v*
         paths:
-            - glide-core/src/**
-            - glide-core/redis-rs/redis/src/**
+            - glide-core/**
+            - glide-logger/**
+            - glide-telemetry/**
+            - glide-rdma/**
             - ffi/src/**
+            - ffi/Cargo.toml
+            - ffi/Cargo.lock
+            - ffi/cbindgen.toml
+            - ffi/clippy.toml
+            - ffi/tests/**
+            - ffi/.cargo/config.toml
+            - .cargo/config.toml
+            - deny.toml
             - utils/cluster_manager.py
             - go/**
             - .github/workflows/go.yml
             - .github/actions/install-shared-dependencies/action.yml
+            - .github/actions/install-rust/action.yml
+            - .github/actions/install-protoc/action.yml
+            - .github/actions/install-zig/action.yml
+            - .github/actions/setup-dns-tests/**
             - .github/actions/test-benchmark/action.yml
             - .github/actions/lint-rust/action.yml
             - .github/actions/install-engine/action.yml
@@ -26,13 +40,27 @@ on:
             - "!**/THIRD_PARTY_LICENSES*"
     pull_request:
         paths:
-            - glide-core/src/**
-            - glide-core/redis-rs/redis/src/**
+            - glide-core/**
+            - glide-logger/**
+            - glide-telemetry/**
+            - glide-rdma/**
             - ffi/src/**
+            - ffi/Cargo.toml
+            - ffi/Cargo.lock
+            - ffi/cbindgen.toml
+            - ffi/clippy.toml
+            - ffi/tests/**
+            - ffi/.cargo/config.toml
+            - .cargo/config.toml
+            - deny.toml
             - utils/cluster_manager.py
             - go/**
             - .github/workflows/go.yml
             - .github/actions/install-shared-dependencies/action.yml
+            - .github/actions/install-rust/action.yml
+            - .github/actions/install-protoc/action.yml
+            - .github/actions/install-zig/action.yml
+            - .github/actions/setup-dns-tests/**
             - .github/actions/test-benchmark/action.yml
             - .github/actions/lint-rust/action.yml
             - .github/actions/install-engine/action.yml
@@ -188,13 +216,11 @@ jobs:
                   ulimit -n 65536 2>/dev/null || true
                   if [[ -n "$RC_VERSION" ]]; then
                     make install-tools
-                    make -k integ-test
+                    make -k integ-test tls-test opentelemetry-test
                   else
                     make install-tools build
-                    make -k unit-test integ-test
+                    make -k unit-test integ-test tls-test opentelemetry-test
                   fi
-                  make -k tls-test tls=true
-                  make -k opentelemetry-test
 
             - name: Run Example Tests
               # Runs on the newest Valkey engine in the matrix so that examples for
@@ -202,8 +228,7 @@ jobs:
               # that actually implements them. Older engines remain covered by the
               # version-gated integration tests.
               working-directory: go
-              # TODO #7312: Bump to 9.2.0 once released
-              if: ${{ matrix.engine.type == 'valkey' && matrix.engine.version == '9.2.0-rc1' && !inputs.rc-version }}
+              if: ${{ matrix.engine.type == 'valkey' && matrix.engine.version == '9.2' && !inputs.rc-version }}
               run: |
                   make -k example-test
 
@@ -286,7 +311,7 @@ jobs:
         runs-on: ${{ matrix.host.RUNNER }}
         needs: [get-containers, approve-self-hosted]
         if: always() && needs.get-containers.result == 'success' && (needs.approve-self-hosted.result == 'success' || needs.approve-self-hosted.result == 'skipped')
-        timeout-minutes: 25
+        timeout-minutes: 35
         strategy:
             fail-fast: false
             matrix:
@@ -374,10 +399,10 @@ jobs:
                   ulimit -n 65536 2>/dev/null || true
                   if [[ -n "$RC_VERSION" ]]; then
                     make install-tools
-                    make -k integ-test
+                    make -k integ-test tls-test
                   else
                     make install-tools build
-                    make -k unit-test integ-test
+                    make -k unit-test integ-test tls-test
                   fi
 
             - name: Upload test reports
@@ -450,12 +475,10 @@ jobs:
               run: |
                   if [[ -n "$RC_VERSION" ]]; then
                     make install-tools
-                    make -k long-timeout-test test-filter=TestLongTimeout
                   else
                     make install-tools build
-                    make -k long-timeout-test test-filter=TestLongTimeout
                   fi
-                  make -k pubsub-test
+                  make -k long-timeout-test pubsub-test test-filter=TestLongTimeout
 
             - name: Upload logs and reports
               if: always()
